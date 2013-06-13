@@ -112,7 +112,7 @@ public class TransformPipeline {
      * Extension of {@link Matrix} providing methods to transform between {@link PointF} and 
      * {@link Coordinate} objects. 
      */
-    static class Transform extends Matrix {
+    public static class Transform extends Matrix {
 
         public Transform() {
             super();

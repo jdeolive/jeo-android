@@ -98,6 +98,10 @@ public class Renderer {
         this.canvas = canvas;
     }
 
+    public TransformPipeline getTransform() {
+        return tx;
+    }
+
     public LabelIndex getLabels() {
         return labels;
     }
