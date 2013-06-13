@@ -1,7 +1,7 @@
 package org.jeo.android.graphics;
 
 import org.jeo.feature.Feature;
-import org.jeo.geom.Geom;
+import org.jeo.geom.Envelopes;
 import org.jeo.map.Rule;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -45,6 +45,6 @@ public class PointLabel extends Label {
 
     @Override
     public Geometry shape() {
-        return Geom.toPolygon(box);
+        return Envelopes.toPolygon(box);
     }
 }

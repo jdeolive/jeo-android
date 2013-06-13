@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.jeo.feature.Feature;
-import org.jeo.geom.Geom;
+import org.jeo.geom.Envelopes;
 import org.jeo.map.Rule;
 
 import com.vividsolutions.jts.geom.Envelope;
@@ -123,7 +123,7 @@ public abstract class Label {
             throw new IllegalStateException("Label has no bounds or shape");
         }
 
-        return Geom.toPolygon(bounds);
+        return Envelopes.toPolygon(bounds);
     }
 
     @Override
