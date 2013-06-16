@@ -25,6 +25,11 @@ public class TransformPipeline {
     public TransformPipeline(Map map, Canvas canvas) {
         this.canvas = canvas;
 
+        update(map);
+    }
+
+    public void update(Map map) {
+
         // transformation from map coordinates to canvas coordinates
         worldToCanvas = new Transform();
         worldToCanvas.preScale((float)map.scaleX(), (float)-map.scaleY());
@@ -34,8 +39,6 @@ public class TransformPipeline {
         canvasToWorld = new Transform();
         worldToCanvas.invert(canvasToWorld);
 
-        // canvas to screen
-        canvasToScreen = new Transform(canvas.getMatrix());
 
         // world directly to screen
         worldToScreen = new Transform(canvasToScreen);
