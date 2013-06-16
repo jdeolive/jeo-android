@@ -90,9 +90,6 @@ public class Renderer {
 
     /** label renderer */
     Labeller labeller;
-    
-    /** invert y */
-    boolean invertY;
 
     public Renderer(Canvas canvas) {
         this.canvas = canvas;
