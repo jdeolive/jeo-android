@@ -18,6 +18,8 @@ import com.vividsolutions.jts.index.quadtree.Quadtree;
  * Stores {@link Label} objects in a spatial index dealing with label overlapping.
  *  
  * @author Justin Deoliveira, OpenGeo
+ * 
+ * TODO: use prepared geometries for overlap computation
  */
 public class LabelIndex {
 
