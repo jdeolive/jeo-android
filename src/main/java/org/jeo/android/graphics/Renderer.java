@@ -29,7 +29,12 @@ import static org.jeo.map.Carto.TEXT_SIZE;
 import java.io.IOException;
 import java.util.List;
 
+import org.jeo.data.Dataset;
 import org.jeo.data.Query;
+import org.jeo.data.Tile;
+import org.jeo.data.TileCover;
+import org.jeo.data.TilePyramid;
+import org.jeo.data.TileSet;
 import org.jeo.data.VectorData;
 import org.jeo.feature.Feature;
 import org.jeo.geom.CoordinatePath;
@@ -42,6 +47,8 @@ import org.jeo.map.RuleList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -52,8 +59,11 @@ import android.graphics.Paint.Style;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
+import android.util.Log;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 
 /**
@@ -116,13 +126,21 @@ public class Renderer {
     }
 
     public void render() {
+        Log.d("render", "Rendering map at " + map.getBounds());
         for (Layer l : map.getLayers()) {
             List<RuleList> rules = 
                 map.getStyle().getRules().selectById(l.getName(), true).flatten().zgroup();
 
             //allocate the buffers
-            for (RuleList RuleList : rules) {
-                render((VectorData) l.getData(), RuleList);
+            for (RuleList ruleList : rules) {
+                Dataset data = l.getData();
+                if (data instanceof VectorData) {
+                    render((VectorData)data, ruleList);
+                }
+                else if (data instanceof TileSet) {
+                    render((TileSet)data, ruleList);
+                }
+                
             }
         }
 
@@ -131,15 +149,15 @@ public class Renderer {
         tx.unset();
     }
 
-    void render(VectorData data, RuleList RuleList) {
+    void render(VectorData data, RuleList rules) {
         try {
             for (Feature f : data.cursor(new Query().bounds(map.getBounds()))) {
-                RuleList rs = RuleList.match(f);
+                RuleList rs = rules.match(f);
                 if (rs.isEmpty()) {
                     continue;
                 }
               
-                Rule r = RuleList.match(f).collapse();
+                Rule r = rules.match(f).collapse();
                 if (r != null) {
                     draw(f, r);
                 }
@@ -147,6 +165,81 @@ public class Renderer {
         } catch (IOException e) {
             LOG.error("Error querying layer " + data.getName(), e);
         }
+    }
+
+    void render(TileSet data, RuleList rules) {
+        tx.unset();
+
+        try {
+            TilePyramid pyr = data.getPyramid();
+
+            TileCover cov = pyr.cover(map.getBounds(), map.getWidth(), map.getHeight());
+            cov.fill(data);
+
+            Rect dst = new Rect();
+
+            Paint p = newPaint();
+
+            double scx = cov.getGrid().getXRes() / map.iscaleX();
+            double scy = cov.getGrid().getYRes() / map.iscaleY();
+
+            dst.left = 0;
+            for (int x = 0; x < cov.getWidth(); x++) {
+                dst.bottom = canvas.getHeight();
+
+                for (int y = 0; y < cov.getHeight(); y++) {
+                    Tile t = cov.tile(x, y);
+
+                    // clip source rectangle
+                    Rect src = clipTile(t, pyr, map);
+
+                    dst.right = dst.left + (int) (src.width() * scx);
+                    dst.top = dst.bottom - (int) (src.height() * scy);
+
+                    // load the bitmap
+                    Bitmap img = bitmap(t);
+                    canvas.drawBitmap(img, src, dst, p);
+
+                    dst.bottom = dst.top;
+                    //img.recycle();
+                }
+
+                dst.left = dst.right;
+            }
+        }
+        catch(IOException e) {
+            LOG.error("Error querying layer " + data.getName(), e);
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        tx.setWorldToScreen();
+    }
+
+    Rect clipTile(Tile t, TilePyramid pyr, Map map) {
+        Envelope tb = pyr.bounds(t);
+        Envelope i = tb.intersection(map.getBounds());
+
+        Rect rect = new Rect(0, 0, pyr.getTileWidth(), pyr.getTileHeight());
+
+        int w = rect.width();
+        int h = rect.height();
+
+        rect.left += (i.getMinX() - tb.getMinX())/tb.getWidth() * w;
+        rect.right -= (tb.getMaxX() - i.getMaxX())/tb.getWidth() * w;
+        rect.top += (tb.getMaxY() - i.getMaxY())/tb.getHeight() * h; 
+        rect.bottom -= (i.getMinY() - tb.getMinY())/tb.getHeight() * h;
+
+        return rect;
+    }
+
+    Bitmap bitmap(Tile t) {
+        byte[] data = t.getData();
+        if (data == null) {
+            return Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888);
+        }
+        return BitmapFactory.decodeByteArray(data, 0, data.length);
     }
 
     void renderLabels() {
