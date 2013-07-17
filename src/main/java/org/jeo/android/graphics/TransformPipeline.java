@@ -1,8 +1,11 @@
 package org.jeo.android.graphics;
 
 import org.jeo.map.Map;
+import org.jeo.map.Style;
+import org.osgeo.proj4j.CoordinateReferenceSystem;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Envelope;
 
 import android.graphics.Canvas;
 import android.graphics.Matrix;
@@ -13,23 +16,19 @@ import android.graphics.PointF;
  * 
  * @author Justin Deoliveira, OpenGeo
  */
-public class TransformPipeline {
+public class TransformPipeline implements Map.Listener {
 
-    Canvas canvas;
-
-    Transform canvasToScreen;
-    Transform worldToScreen;
     Transform worldToCanvas;
     Transform canvasToWorld;
+    Transform canvasToScreen;
 
-    public TransformPipeline(Map map, Canvas canvas) {
-        this.canvas = canvas;
+    public TransformPipeline(Map map) {
+        map.bind(this);
 
         update(map);
     }
 
     public void update(Map map) {
-
         // transformation from map coordinates to canvas coordinates
         worldToCanvas = new Transform();
         worldToCanvas.preScale((float)map.scaleX(), (float)-map.scaleY());
@@ -38,11 +37,6 @@ public class TransformPipeline {
         // inverse of above
         canvasToWorld = new Transform();
         worldToCanvas.invert(canvasToWorld);
-
-
-        // world directly to screen
-        worldToScreen = new Transform(canvasToScreen);
-        worldToScreen.preConcat(worldToCanvas);
     }
 
     /**
@@ -72,43 +66,74 @@ public class TransformPipeline {
         return canvasToWorld;
     }
 
-    /**
-     * Returns the original transform from the canvas to the screen.
-     * <p>
-     * This transform is dependent on the screen layout. It is obtained from 
-     * {@link Canvas#getMatrix()}. 
-     * </p>
-     */
-    public Transform getCanvasToScreen() {
-        return canvasToScreen;
-    }
+    public void apply(Canvas canvas) {
+        canvasToScreen = new Transform(canvas.getMatrix());
 
-    /**
-     * Returns the concatenated transform from map to screen.
-     * <p>
-     * This transform is obtained from multiplying the following transforms:
-     * <pre>
-     *   canvasToScreen * worldToCanvas
-     * </pre>
-     * </p>
-     * @return
-     */
-    public Transform getWorldToScreen() {
-        return worldToScreen;
-    }
+        Transform worldToScreen = new Transform(canvasToScreen);
+        worldToScreen.preConcat(worldToCanvas);
 
-    /**
-     * Sets the transform on the underlying canvas to {@link #getWorldToScreen()}.
-     */
-    public void setWorldToScreen() {
         canvas.setMatrix(worldToScreen);
     }
 
-    /**
-     * Restores the canvas transform to its original {@link #getCanvasToScreen()} transform. 
-     */
-    public void unset() {
+    public void reset(Canvas canvas) {
         canvas.setMatrix(canvasToScreen);
+    }
+
+//    /**
+//     * Returns the original transform from the canvas to the screen.
+//     * <p>
+//     * This transform is dependent on the screen layout. It is obtained from 
+//     * {@link Canvas#getMatrix()}. 
+//     * </p>
+//     */
+//    public Transform getCanvasToScreen() {
+//        return canvasToScreen;
+//    }
+//
+//    /**
+//     * Returns the concatenated transform from map to screen.
+//     * <p>
+//     * This transform is obtained from multiplying the following transforms:
+//     * <pre>
+//     *   canvasToScreen * worldToCanvas
+//     * </pre>
+//     * </p>
+//     * @return
+//     */
+//    public Transform getWorldToScreen() {
+//        return worldToScreen;
+//    }
+//
+//    /**
+//     * Sets the transform on the underlying canvas to {@link #getWorldToScreen()}.
+//     */
+//    public void setWorldToScreen() {
+//        canvas.setMatrix(worldToScreen);
+//    }
+//
+//    /**
+//     * Restores the canvas transform to its original {@link #getCanvasToScreen()} transform. 
+//     */
+//    public void unset() {
+//        canvas.setMatrix(canvasToScreen);
+//    }
+
+    @Override
+    public void onBoundsChanged(Map map, Envelope bounds, Envelope old) {
+        update(map);
+    }
+
+    @Override
+    public void onSizeChanged(Map map, int width, int height, int oldWidth, int oldHeight) {
+        
+    }
+
+    @Override
+    public void onStyleChanged(Map map, Style style, Style old) {
+    }
+
+    @Override
+    public void onCRSChanged(Map map, CoordinateReferenceSystem crs, CoordinateReferenceSystem old) {
     }
 
     /**

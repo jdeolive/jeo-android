@@ -6,6 +6,7 @@ import org.jeo.feature.Feature;
 import org.jeo.map.Rule;
 
 import com.vividsolutions.jts.geom.Envelope;
+import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.LineSegment;
 
 /**
@@ -17,8 +18,8 @@ public class LineLabel extends Label {
 
     List<LineSegment> path;
 
-    public LineLabel(String text, Rule rule, Feature feature) {
-        super(text, rule, feature);
+    public LineLabel(String text, Rule rule, Feature feature, Geometry geom) {
+        super(text, rule, feature, geom);
     }
 
     public List<LineSegment> getPath() {

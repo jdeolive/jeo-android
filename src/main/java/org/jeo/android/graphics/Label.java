@@ -20,14 +20,16 @@ public abstract class Label {
     String text;
     Rule rule;
     Feature feature;
+    Geometry geom;
 
     Geometry shape = null;
     Map<Object,Object> stuff; 
 
-    public Label(String text, Rule rule, Feature feature) {
+    public Label(String text, Rule rule, Feature feature, Geometry geom) {
         this.text = text;
         this.rule = rule;
         this.feature = feature;
+        this.geom = geom;
     }
 
     /**
@@ -52,6 +54,16 @@ public abstract class Label {
      */
     public Feature getFeature() {
         return feature;
+    }
+
+    /**
+     * The rendered feature geometry.
+     * <p>
+     * This may not be the same as <tt>getFeature().geometry()</tt> due to clipping/etc..  
+     * </p>
+     */
+    public Geometry getGeometry() {
+        return geom;
     }
 
     /**

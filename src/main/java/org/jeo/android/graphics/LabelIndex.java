@@ -1,6 +1,6 @@
 package org.jeo.android.graphics;
 
-import static org.jeo.map.Carto.*;
+import static org.jeo.map.CartoCSS.*;
 
 import java.util.ArrayList;
 import java.util.List;

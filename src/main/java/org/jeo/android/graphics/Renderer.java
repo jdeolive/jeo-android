@@ -1,30 +1,7 @@
 package org.jeo.android.graphics;
 
 import static org.jeo.android.graphics.Util.rectFromCenter;
-import static org.jeo.map.Carto.COMP_OP;
-import static org.jeo.map.Carto.LINE_CAP;
-import static org.jeo.map.Carto.LINE_COLOR;
-import static org.jeo.map.Carto.LINE_COMP_OP;
-import static org.jeo.map.Carto.LINE_JOIN;
-import static org.jeo.map.Carto.LINE_OPACITY;
-import static org.jeo.map.Carto.LINE_WIDTH;
-import static org.jeo.map.Carto.MARKER_COMP_OP;
-import static org.jeo.map.Carto.MARKER_FILL;
-import static org.jeo.map.Carto.MARKER_FILL_OPACITY;
-import static org.jeo.map.Carto.MARKER_HEIGHT;
-import static org.jeo.map.Carto.MARKER_LINE_COLOR;
-import static org.jeo.map.Carto.MARKER_LINE_OPACITY;
-import static org.jeo.map.Carto.MARKER_LINE_WIDTH;
-import static org.jeo.map.Carto.MARKER_WIDTH;
-import static org.jeo.map.Carto.POLYGON_COMP_OP;
-import static org.jeo.map.Carto.POLYGON_FILL;
-import static org.jeo.map.Carto.POLYGON_OPACITY;
-import static org.jeo.map.Carto.TEXT_ALIGN;
-import static org.jeo.map.Carto.TEXT_FILL;
-import static org.jeo.map.Carto.TEXT_HALO_FILL;
-import static org.jeo.map.Carto.TEXT_HALO_RADIUS;
-import static org.jeo.map.Carto.TEXT_NAME;
-import static org.jeo.map.Carto.TEXT_SIZE;
+import static org.jeo.map.CartoCSS.*;
 
 import java.io.IOException;
 import java.util.List;
@@ -38,6 +15,7 @@ import org.jeo.data.TileSet;
 import org.jeo.data.VectorData;
 import org.jeo.feature.Feature;
 import org.jeo.geom.CoordinatePath;
+import org.jeo.geom.Envelopes;
 import org.jeo.geom.Geom;
 import org.jeo.map.Layer;
 import org.jeo.map.Map;
@@ -51,6 +29,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Paint.Align;
 import android.graphics.Paint.Cap;
@@ -60,7 +39,6 @@ import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
-import android.util.Log;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Envelope;
@@ -117,8 +95,8 @@ public class Renderer {
         this.map = map;
 
         // initialize the transformation from world to screen
-        tx = new TransformPipeline(map, canvas);
-        tx.setWorldToScreen();
+        tx = new TransformPipeline(map);
+        tx.apply(canvas);
 
         // labels
         labels = new LabelIndex();
@@ -126,8 +104,15 @@ public class Renderer {
     }
 
     public void render() {
-        Log.d("render", "Rendering map at " + map.getBounds());
+        LOG.debug("Rendering map at " + map.getBounds());
+
+        // background
+        renderBackground();
         for (Layer l : map.getLayers()) {
+            if (!l.isVisible()) {
+                continue;
+            }
+
             List<RuleList> rules = 
                 map.getStyle().getRules().selectById(l.getName(), true).flatten().zgroup();
 
@@ -146,7 +131,8 @@ public class Renderer {
 
         //labels
         renderLabels();
-        tx.unset();
+        tx.reset(canvas);
+        LOG.debug("Rendering complete");
     }
 
     void render(VectorData data, RuleList rules) {
@@ -168,7 +154,7 @@ public class Renderer {
     }
 
     void render(TileSet data, RuleList rules) {
-        tx.unset();
+        tx.reset(canvas);
 
         try {
             TilePyramid pyr = data.getPyramid();
@@ -214,7 +200,7 @@ public class Renderer {
             e.printStackTrace();
         }
 
-        tx.setWorldToScreen();
+        tx.apply(canvas);
     }
 
     Rect clipTile(Tile t, TilePyramid pyr, Map map) {
@@ -242,6 +228,29 @@ public class Renderer {
         return BitmapFactory.decodeByteArray(data, 0, data.length);
     }
 
+    void renderBackground() {
+        tx.reset(canvas);
+
+        RuleList rules = map.getStyle().getRules().selectByName("Map", false);
+        if (rules.isEmpty()) {
+            //nothing to do
+            return;
+        }
+
+        Rule rule = rules.collapse();
+        RGB bgColor = rule.color(map, BACKGROUND_COLOR, null);
+        if (bgColor != null) {
+            bgColor = bgColor.alpha(rule.number(map, OPACITY, 1f));
+
+            Paint p = newPaint();
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(color(bgColor));
+            canvas.drawRect(new Rect(0, 0, map.getWidth(), map.getHeight()), p);
+        }
+
+        tx.apply(canvas);
+    }
+
     void renderLabels() {
         for (Label l : labels.all()) {
             labeller.render(l);
@@ -254,6 +263,11 @@ public class Renderer {
             return;
         }
 
+        g = clipGeometry(g);
+        if (g.isEmpty()) {
+            return;
+        }
+
         switch(Geom.Type.from(g)) {
         case POINT:
         case MULTIPOINT:
@@ -261,25 +275,31 @@ public class Renderer {
             return;
         case LINESTRING:
         case MULTILINESTRING:
-            drawLine(f, rule);
+            drawLine(f, rule, g);
             return;
         case POLYGON:
         case MULTIPOLYGON:
-            drawPolygon(f, rule);
+            drawPolygon(f, rule, g);
             return;
         default:
             throw new UnsupportedOperationException();
         }
     }
 
+    Geometry clipGeometry(Geometry g) {
+        // TODO: doing a full intersection is sub-optimal, look at a more efficient clipping 
+        // algorithm, like cohen-sutherland
+        return g.intersection(Envelopes.toPolygon(map.getBounds()));
+    }
+
     void drawPoint(Feature f, Rule rule) {
         // markers drawn in pixel space
-        tx.unset();
+        tx.reset(canvas);
 
         //TODO: marker type
         //String type = rule.string(f, MARKER_TYPE, "circle");
         
-        RGB fillColor = rule.color(f, MARKER_FILL, RGB.black);
+        RGB fillColor = rule.color(f, MARKER_FILL, null);
         if (fillColor != null) {
             fillColor = fillColor.alpha(rule.number(f, MARKER_FILL_OPACITY, 1f));
         }
@@ -297,9 +317,7 @@ public class Renderer {
         String markCompOp = rule.string(f, MARKER_COMP_OP, null);
         String lineCompOp = rule.string(f, LINE_COMP_OP, null);
 
-        if (fillColor == null && lineColor == null) {
-            return;
-        }
+        Geometry point = f.geometry();
 
         if (fillColor != null) {
             Paint paint = newPaint();
@@ -313,8 +331,7 @@ public class Renderer {
                 }
             }
 
-            CoordinatePath path = 
-                CoordinatePath.create(f.geometry(), true, map.iscaleX(), map.iscaleY());
+            CoordinatePath path = CoordinatePath.create(point, true, map.iscaleX(), map.iscaleY());
             while(path.hasNext()) {
                 Coordinate c = path.next();
                 canvas.drawOval(rectFromCenter(tx.getWorldToCanvas().map(c), width, height), paint);
@@ -334,8 +351,7 @@ public class Renderer {
                 }
             }
 
-            CoordinatePath path = 
-                CoordinatePath.create(f.geometry(), true, map.iscaleX(), map.iscaleY());
+            CoordinatePath path = CoordinatePath.create(point, true, map.iscaleX(), map.iscaleY());
             while(path.hasNext()) {
                 Coordinate c = path.next();
                 canvas.drawOval(rectFromCenter(tx.getWorldToCanvas().map(c), width, height), paint);
@@ -345,14 +361,14 @@ public class Renderer {
         // labels
         String label = rule.eval(f, TEXT_NAME, String.class);
         if (label != null) {
-            createPointLabel(label, rule, f);
+            createPointLabel(label, rule, f, point);
         }
 
-        tx.setWorldToScreen();
+        tx.apply(canvas);
     }
 
-    void createPointLabel(String label, Rule rule, Feature f) {
-        PointLabel l = new PointLabel(label, rule, f);
+    void createPointLabel(String label, Rule rule, Feature f, Geometry g) {
+        PointLabel l = new PointLabel(label, rule, f, g);
 
         Paint p = newLabelPaint(rule, f);
         l.put(Paint.class, p);
@@ -360,7 +376,7 @@ public class Renderer {
         labeller.layout(l, labels);
     }
 
-    void drawLine(Feature f, Rule rule) {
+    void drawLine(Feature f, Rule rule, Geometry line) {
 
         // line color + width 
         RGB color = rule.color(f, LINE_COLOR, RGB.black);
@@ -373,11 +389,26 @@ public class Renderer {
         Cap cap = cap(rule.string(f, LINE_CAP, "butt"));
 
         // line dash
-        double[] dash = null; /*rule.numbers("line-dasharray", null);*/ 
+        float[] dash = dash(rule.numbers(f, LINE_DASHARRAY, (Float[])null));
         if (dash != null && dash.length % 2 != 0) {
-            throw new IllegalArgumentException("line-dasharray pattern must be even length");
+            LOG.debug("dash specified odd number of entries");
+
+            float[] tmp;
+            if (dash.length > 2) {
+                // strip off last
+                tmp = new float[dash.length-1];
+                System.arraycopy(dash, 0, tmp, 0, tmp.length);
+            }
+            else {
+                // pad it
+                tmp = new float[dash.length*2];
+                System.arraycopy(dash, 0, tmp, 0, dash.length);
+                System.arraycopy(dash, 0, tmp, dash.length, dash.length);
+            }
         }
 
+        float dashOffset = rule.number(f, LINE_DASH_OFFSET, 0f);
+        
         //float gamma = rule.number(f, "line-gamma", 1f);
         //String gammaMethod = rule.string(f, "line-gamma-method", "power");
 
@@ -387,12 +418,19 @@ public class Renderer {
         paint.setStyle(Style.STROKE);
         paint.setColor(color(color));
         paint.setStrokeWidth(width);
+        paint.setStrokeJoin(join);
+        paint.setStrokeCap(cap);
 
+        if (dash != null && dash.length > 0) {
+            // scale the strokes
+            for (int i = 0; i < dash.length; i++) {
+                dash[i] = strokeWidth(dash[i]);
+            }
+            paint.setPathEffect(new DashPathEffect(dash, dashOffset));
+        }
         if (compOp != null) {
             paint.setXfermode(pdMode(compOp));
         }
-
-        Geometry line = f.geometry();
 
         Path path = path(line);
         canvas.drawPath(path, paint);
@@ -400,20 +438,20 @@ public class Renderer {
         //labels
         String label = rule.eval(f, TEXT_NAME, String.class);
         if (label != null) {
-            createLineLabel(label, rule, f);
+            createLineLabel(label, rule, f, line);
         }
     }
 
-    void createLineLabel(String label, Rule rule, Feature f) {
+    void createLineLabel(String label, Rule rule, Feature f, Geometry g) {
         Paint p = newLabelPaint(rule, f);
 
-        LineLabel l = new LineLabel(label, rule, f);
+        LineLabel l = new LineLabel(label, rule, f, g);
         l.put(Paint.class, p);
 
         labeller.layout(l, labels);
     }
 
-    void drawPolygon(Feature f, Rule rule) {
+    void drawPolygon(Feature f, Rule rule, Geometry poly) {
 
         // fill color
         RGB polyFill = rule.color(f, POLYGON_FILL, null);
@@ -454,7 +492,7 @@ public class Renderer {
                 }
             }
 
-            Path path = path(f.geometry());
+            Path path = path(poly);
             canvas.drawPath(path, paint);
         }
 
@@ -471,14 +509,14 @@ public class Renderer {
                 }
             }
 
-            Path path = path(f.geometry());
+            Path path = path(poly);
             canvas.drawPath(path, paint);
         }
 
         // labels
         String label = rule.eval(f, TEXT_NAME, String.class);
         if (label != null) {
-            createPointLabel(label, rule, f);
+            createPointLabel(label, rule, f, poly);
         }
 
         //drawPolygon(rp, buf, vpb.buffer(), color(polyFill), gamma, gammaMethod, color(lineColor), 
@@ -583,6 +621,18 @@ public class Renderer {
             width = tx.canvasToWorld.mapRadius(width);
         }
         return width;
+    }
+
+    float[] dash(Float[] dash) {
+        if (dash == null) {
+            return null;
+        }
+
+        float[] prim = new float[dash.length];
+        for (int i = 0; i < prim.length; i++) {
+            prim[i] = dash[i].floatValue();
+        }
+        return prim;
     }
 
     PorterDuffXfermode pdMode(String compOp) {

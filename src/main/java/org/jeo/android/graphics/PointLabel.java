@@ -18,8 +18,8 @@ public class PointLabel extends Label {
     Envelope box;
     Coordinate anchor;
 
-    public PointLabel(String text, Rule rule, Feature feature) {
-        super(text, rule, feature);
+    public PointLabel(String text, Rule rule, Feature feature, Geometry geom) {
+        super(text, rule, feature, geom);
     }
 
     public Envelope getBox() {

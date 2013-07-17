@@ -1,10 +1,10 @@
 package org.jeo.android.graphics;
 
 import static org.jeo.android.graphics.Util.*;
-import static org.jeo.map.Carto.TEXT_DX;
-import static org.jeo.map.Carto.TEXT_DY;
-import static org.jeo.map.Carto.TEXT_MAX_CHAR_ANGLE_DELTA;
-import static org.jeo.map.Carto.TEXT_MIN_PADDING;
+import static org.jeo.map.CartoCSS.TEXT_DX;
+import static org.jeo.map.CartoCSS.TEXT_DY;
+import static org.jeo.map.CartoCSS.TEXT_MAX_CHAR_ANGLE_DELTA;
+import static org.jeo.map.CartoCSS.TEXT_MIN_PADDING;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -62,10 +62,12 @@ public class Labeller {
     boolean layout(PointLabel label, LabelIndex labels) {
         String text = label.getText();
         Feature f = label.getFeature();
+        Geometry g = label.getGeometry();
+
         Rule rule = label.getRule();
 
         // get center in screen space
-        Coordinate centroid = f.geometry().getCentroid().getCoordinate();
+        Coordinate centroid = g.getCentroid().getCoordinate();
 
         PointF anchor = tx.getWorldToCanvas().map(centroid);
         
@@ -116,7 +118,7 @@ public class Labeller {
         String txt = label.getText();
         Rule rule = label.getRule();
         Feature f = label.getFeature();
-        Geometry g = f.geometry();
+        Geometry g = label.getGeometry();
 
         LineString line = null;
         if (g instanceof MultiLineString) {
@@ -371,7 +373,7 @@ public class Labeller {
     }
     
     void render(PointLabel label) {
-        tx.unset();
+        tx.reset(canvas);
 
         Paint p = label.get(Paint.class, Paint.class);
 
@@ -380,11 +382,11 @@ public class Labeller {
 
         canvas.drawText(label.getText(), f.x, f.y, p);
 
-        tx.setWorldToScreen();
+        tx.apply(canvas);
     }
 
     void render(LineLabel label) {
-        tx.unset();
+        tx.reset(canvas);
         
         String txt = label.getText();
 
@@ -412,7 +414,7 @@ public class Labeller {
             canvas.setMatrix(m);
         }
 
-        tx.setWorldToScreen();
+        tx.apply(canvas);
         //canvas.drawTextOnPath(l.text, l.getPath(), 0, 0, l.get(Paint.class,Paint.class));
     }
 
