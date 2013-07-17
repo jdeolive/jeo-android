@@ -26,15 +26,19 @@
     <dependency>
       <groupId>com.google.android</groupId>
       <artifactId>android</artifactId>
-      <version>4.0.1.2</version>
+      <version>${android.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.google</groupId>
       <artifactId>google-play-services</artifactId>
-      <version>2.0.12</version>
+      <version>${googleplay.version}</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
 
+  <properties>
+    <android.version>4.0.1.2</android.version>
+    <googleplay.version>2.0.12</googleplay.version>
+  </properties>
 </project>
