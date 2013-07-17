@@ -8,13 +8,17 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 
 import org.jeo.android.geopkg.Entry.DataType;
 import org.jeo.data.Cursors;
+import org.jeo.data.DataRef;
 import org.jeo.data.Dataset;
 import org.jeo.data.Driver;
+import org.jeo.data.FileData;
 import org.jeo.data.Query;
 import org.jeo.data.QueryPlan;
 import org.jeo.data.TilePyramid;
@@ -29,6 +33,7 @@ import org.jeo.geom.Envelopes;
 import org.jeo.geom.Geom;
 import org.jeo.proj.Proj;
 import org.jeo.sql.SQL;
+import org.jeo.util.Key;
 import org.osgeo.proj4j.CoordinateReferenceSystem;
 
 import com.vividsolutions.jts.geom.Envelope;
@@ -37,7 +42,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
-public class GeoPkgWorkspace implements Workspace {
+public class GeoPkgWorkspace implements Workspace, FileData {
 
     /** name of geopackage contents table */
     static final String GEOPACKAGE_CONTENTS = "geopackage_contents";
@@ -60,9 +65,11 @@ public class GeoPkgWorkspace implements Workspace {
         DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
     }
 
+    File file;
     SQLiteDatabase db;
 
     public GeoPkgWorkspace(File file) {
+        this.file = file;
         db = SQLiteDatabase.openOrCreateDatabase(file, null);
     } 
 
@@ -70,15 +77,27 @@ public class GeoPkgWorkspace implements Workspace {
     public Driver<?> getDriver() {
         return new GeoPackage();
     }
-    
+
     @Override
-    public Iterable<String> list() {
+    public Map<Key<?>, Object> getDriverOptions() {
+        Map<Key<?>,Object> map = new HashMap<Key<?>, Object>();
+        map.put(GeoPackage.FILE, file);
+        return map;
+    }
+
+    @Override
+    public File getFile() {
+        return file;
+    }
+
+    @Override
+    public Iterable<DataRef<Dataset>> list() {
         Cursor c = 
             db.query(GEOPACKAGE_CONTENTS, new String[]{"table_name"}, null, null, null, null, null);
         try {
-            List<String> list = new ArrayList<String>();
+            List<DataRef<Dataset>> list = new ArrayList<DataRef<Dataset>>();
             while(c.moveToNext()) {
-                list.add(c.getString(0));
+                list.add(new DataRef<Dataset>(Dataset.class, c.getString(0)));
             }
             return list;
         }
@@ -163,7 +182,7 @@ public class GeoPkgWorkspace implements Workspace {
 
     void encodeQuery(SQL sql, Query q, QueryPlan qp) {
         if (!Filter.isTrueOrNull(q.getFilter())) {
-            GeoPkgFilterSQLEncoder sqlfe = new GeoPkgFilterSQLEncoder(null, null);
+            GeoPkgFilterSQLEncoder sqlfe = new GeoPkgFilterSQLEncoder();
             sqlfe.setPrepared(false);
             try {
                 sql.add(" WHERE ").add(sqlfe.encode(q.getFilter(), null));
@@ -344,7 +363,7 @@ public class GeoPkgWorkspace implements Workspace {
 
     void initEntry(Entry e, Cursor c) {
         e.setTableName(c.getString(0));
-        e.setIdentifier(c.getString(1));
+        e.setIdentifier(c.getString(2));
         e.setDescription(c.getString(3));
 
         try {
