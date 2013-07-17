@@ -3,11 +3,13 @@ package org.jeo.android;
 import java.io.File;
 
 import org.jeo.android.geopkg.GeoPackage;
+import org.jeo.android.mbtiles.MBTiles;
 import org.jeo.data.DirectoryRegistry;
 import org.jeo.data.DriverRegistry;
 
 import org.jeo.data.StaticDriverRegistry;
 import org.jeo.data.mem.Memory;
+import org.jeo.geojson.GeoJSON;
 
 import android.os.Environment;
 
@@ -20,7 +22,7 @@ import android.os.Environment;
 public class GeoDataRegistry extends DirectoryRegistry {
 
     static DriverRegistry DRIVERS = 
-        new StaticDriverRegistry(new GeoPackage(), new Memory());
+        new StaticDriverRegistry(new GeoPackage(), new MBTiles(), new GeoJSON(), new Memory());
 
     public GeoDataRegistry() {
         this(DRIVERS); 
