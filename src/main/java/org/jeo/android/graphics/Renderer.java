@@ -22,6 +22,7 @@ import org.jeo.map.Map;
 import org.jeo.map.RGB;
 import org.jeo.map.Rule;
 import org.jeo.map.RuleList;
+import org.jeo.proj.Proj;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,20 +114,20 @@ public class Renderer {
                 continue;
             }
 
-            List<RuleList> rules = 
-                map.getStyle().getRules().selectById(l.getName(), true).flatten().zgroup();
+            Dataset data = l.getData();
+            if (data instanceof VectorData) {
+                List<RuleList> rules = 
+                    map.getStyle().getRules().selectById(l.getName(), true).flatten().zgroup();
 
-            //allocate the buffers
-            for (RuleList ruleList : rules) {
-                Dataset data = l.getData();
-                if (data instanceof VectorData) {
+                //allocate the buffers
+                for (RuleList ruleList : rules) {
                     render((VectorData)data, ruleList);
                 }
-                else if (data instanceof TileSet) {
-                    render((TileSet)data, ruleList);
-                }
-                
             }
+            else {
+                render((TileSet)data);
+            }
+
         }
 
         //labels
@@ -137,7 +138,20 @@ public class Renderer {
 
     void render(VectorData data, RuleList rules) {
         try {
-            for (Feature f : data.cursor(new Query().bounds(map.getBounds()))) {
+            Query q = new Query().bounds(map.getBounds());
+
+            // reproject
+            if (data.getCRS() != null) {
+                if (!Proj.equal(map.getCRS(), data.getCRS())) {
+                    q.reproject(map.getCRS());
+                }
+            }
+            else {
+                LOG.debug(
+                    "Layer "+data.getName()+" specifies no projection, assuming map projection");
+            }
+
+            for (Feature f : data.cursor(q)) {
                 RuleList rs = rules.match(f);
                 if (rs.isEmpty()) {
                     continue;
@@ -153,7 +167,7 @@ public class Renderer {
         }
     }
 
-    void render(TileSet data, RuleList rules) {
+    void render(TileSet data) {
         tx.reset(canvas);
 
         try {
