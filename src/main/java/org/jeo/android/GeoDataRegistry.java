@@ -24,11 +24,18 @@ public class GeoDataRegistry extends DirectoryRegistry {
     static DriverRegistry DRIVERS = 
         new StaticDriverRegistry(new GeoPackage(), new MBTiles(), new GeoJSON(), new Memory());
 
+    /**
+     * Returns the GeoData directory handle.
+     */
+    public static File directory() {
+        return new File(Environment.getExternalStorageDirectory(), "GeoData");
+    }
+
     public GeoDataRegistry() {
         this(DRIVERS); 
     }
 
     public GeoDataRegistry(DriverRegistry drivers) {
-        super(new File(Environment.getExternalStorageDirectory(), "GeoData"), drivers);
+        super(directory(), drivers);
     }
 }
