@@ -15,6 +15,10 @@ import org.jeo.data.FileDriver;
  */
 public class MBTiles extends FileDriver<MBTileSet> {
 
+    public static MBTileSet open(File file){
+        return new MBTileSet(file);
+    }
+
     @Override
     public String getName() {
         return "MBTiles";
