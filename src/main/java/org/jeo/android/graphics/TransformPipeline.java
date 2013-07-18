@@ -125,7 +125,7 @@ public class TransformPipeline implements Map.Listener {
 
     @Override
     public void onSizeChanged(Map map, int width, int height, int oldWidth, int oldHeight) {
-        
+        update(map);
     }
 
     @Override
