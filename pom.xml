@@ -40,7 +40,7 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.google</groupId>
+      <groupId>com.google.android</groupId>
       <artifactId>google-play-services</artifactId>
       <version>${googleplay.version}</version>
       <scope>provided</scope>
