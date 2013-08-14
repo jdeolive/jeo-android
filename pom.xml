@@ -49,6 +49,6 @@
 
   <properties>
     <android.version>4.0.1.2</android.version>
-    <googleplay.version>2.0.12</googleplay.version>
+    <googleplay.version>r7</googleplay.version>
   </properties>
 </project>
