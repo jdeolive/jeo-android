@@ -1,6 +1,11 @@
 package org.jeo.android.graphics;
 
-import static org.jeo.android.graphics.Util.*;
+import static org.jeo.android.graphics.Graphics.envelope;
+import static org.jeo.android.graphics.Graphics.expand;
+import static org.jeo.android.graphics.Graphics.point;
+import static org.jeo.android.graphics.Graphics.rectFromBottomCenter;
+import static org.jeo.android.graphics.Graphics.rectFromBottomLeft;
+import static org.jeo.android.graphics.Graphics.rectFromBottomRight;
 import static org.jeo.map.CartoCSS.TEXT_DX;
 import static org.jeo.map.CartoCSS.TEXT_DY;
 import static org.jeo.map.CartoCSS.TEXT_MAX_CHAR_ANGLE_DELTA;
@@ -12,12 +17,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.jeo.feature.Feature;
-import org.jeo.geom.Geom;
 import org.jeo.geom.GeomBuilder;
 import org.jeo.map.Rule;
 
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -26,14 +29,10 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 
 import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineSegment;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiLineString;
-import com.vividsolutions.jts.geom.MultiPolygon;
-import com.vividsolutions.jts.geom.Polygon;
 
 public class Labeller {
 
