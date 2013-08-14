@@ -1,38 +1,38 @@
 package org.jeo.android.graphics;
 
 import org.jeo.map.Map;
-import org.jeo.map.Style;
+import org.jeo.map.Viewport;
 import org.osgeo.proj4j.CoordinateReferenceSystem;
-
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.Envelope;
 
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.PointF;
+
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Envelope;
 
 /**
  * Abstracts the affine transformations involved in the rendering pipeline. 
  * 
  * @author Justin Deoliveira, OpenGeo
  */
-public class TransformPipeline implements Map.Listener {
+public class TransformPipeline implements Viewport.Listener {
 
     Transform worldToCanvas;
     Transform canvasToWorld;
     Transform canvasToScreen;
 
-    public TransformPipeline(Map map) {
-        map.bind(this);
+    public TransformPipeline(Viewport view) {
+        view.bind(this);
 
-        update(map);
+        update(view);
     }
 
-    public void update(Map map) {
+    public void update(Viewport view) {
         // transformation from map coordinates to canvas coordinates
         worldToCanvas = new Transform();
-        worldToCanvas.preScale((float)map.scaleX(), (float)-map.scaleY());
-        worldToCanvas.postTranslate((float)map.translateX(), (float)map.translateY());
+        worldToCanvas.preScale((float)view.scaleX(), (float)-view.scaleY());
+        worldToCanvas.postTranslate((float)view.translateX(), (float)view.translateY());
 
         // inverse of above
         canvasToWorld = new Transform();
@@ -119,21 +119,17 @@ public class TransformPipeline implements Map.Listener {
 //    }
 
     @Override
-    public void onBoundsChanged(Map map, Envelope bounds, Envelope old) {
-        update(map);
+    public void onBoundsChanged(Viewport view, Envelope bounds, Envelope old) {
+        update(view);
     }
 
     @Override
-    public void onSizeChanged(Map map, int width, int height, int oldWidth, int oldHeight) {
-        update(map);
+    public void onSizeChanged(Viewport view, int width, int height, int oldWidth, int oldHeight) {
+        update(view);
     }
 
     @Override
-    public void onStyleChanged(Map map, Style style, Style old) {
-    }
-
-    @Override
-    public void onCRSChanged(Map map, CoordinateReferenceSystem crs, CoordinateReferenceSystem old) {
+    public void onCRSChanged(Viewport view, CoordinateReferenceSystem crs, CoordinateReferenceSystem old) {
     }
 
     /**

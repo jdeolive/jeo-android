@@ -22,6 +22,7 @@ import org.jeo.map.Map;
 import org.jeo.map.RGB;
 import org.jeo.map.Rule;
 import org.jeo.map.RuleList;
+import org.jeo.map.Viewport;
 import org.jeo.proj.Proj;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +66,8 @@ public class Renderer {
 
     static Logger LOG = LoggerFactory.getLogger(Renderer.class);
 
-    /** the map being rendered */
+    /** the view/map being rendered */
+    Viewport view;
     Map map;
 
     /** the transformation pipeline */
@@ -92,11 +94,13 @@ public class Renderer {
         return labels;
     }
 
-    public void init(Map map) {
-        this.map = map;
+    public void init(Viewport view) {
+        this.view = view;
+        
+        map = view.getMap();
 
         // initialize the transformation from world to screen
-        tx = new TransformPipeline(map);
+        tx = new TransformPipeline(view);
         tx.apply(canvas);
 
         // labels
@@ -105,7 +109,7 @@ public class Renderer {
     }
 
     public void render() {
-        LOG.debug("Rendering map at " + map.getBounds());
+        LOG.debug("Rendering map at " + view.getBounds());
 
         // background
         renderBackground();
@@ -138,12 +142,12 @@ public class Renderer {
 
     void render(VectorData data, RuleList rules) {
         try {
-            Query q = new Query().bounds(map.getBounds());
+            Query q = new Query().bounds(view.getBounds());
 
             // reproject
             if (data.getCRS() != null) {
-                if (!Proj.equal(map.getCRS(), data.getCRS())) {
-                    q.reproject(map.getCRS());
+                if (!Proj.equal(view.getCRS(), data.getCRS())) {
+                    q.reproject(view.getCRS());
                 }
             }
             else {
@@ -173,15 +177,15 @@ public class Renderer {
         try {
             TilePyramid pyr = data.getPyramid();
 
-            TileCover cov = pyr.cover(map.getBounds(), map.getWidth(), map.getHeight());
+            TileCover cov = pyr.cover(view.getBounds(), view.getWidth(), view.getHeight());
             cov.fill(data);
 
             Rect dst = new Rect();
 
             Paint p = newPaint();
 
-            double scx = cov.getGrid().getXRes() / map.iscaleX();
-            double scy = cov.getGrid().getYRes() / map.iscaleY();
+            double scx = cov.getGrid().getXRes() / view.iscaleX();
+            double scy = cov.getGrid().getYRes() / view.iscaleY();
 
             dst.left = 0;
             for (int x = 0; x < cov.getWidth(); x++) {
@@ -219,7 +223,7 @@ public class Renderer {
 
     Rect clipTile(Tile t, TilePyramid pyr, Map map) {
         Envelope tb = pyr.bounds(t);
-        Envelope i = tb.intersection(map.getBounds());
+        Envelope i = tb.intersection(view.getBounds());
 
         Rect rect = new Rect(0, 0, pyr.getTileWidth(), pyr.getTileHeight());
 
@@ -259,7 +263,7 @@ public class Renderer {
             Paint p = newPaint();
             p.setStyle(Paint.Style.FILL);
             p.setColor(color(bgColor));
-            canvas.drawRect(new Rect(0, 0, map.getWidth(), map.getHeight()), p);
+            canvas.drawRect(new Rect(0, 0, view.getWidth(), view.getHeight()), p);
         }
 
         tx.apply(canvas);
@@ -303,7 +307,7 @@ public class Renderer {
     Geometry clipGeometry(Geometry g) {
         // TODO: doing a full intersection is sub-optimal, look at a more efficient clipping 
         // algorithm, like cohen-sutherland
-        return g.intersection(Envelopes.toPolygon(map.getBounds()));
+        return g.intersection(Envelopes.toPolygon(view.getBounds()));
     }
 
     void drawPoint(Feature f, Rule rule) {
@@ -345,7 +349,7 @@ public class Renderer {
                 }
             }
 
-            CoordinatePath path = CoordinatePath.create(point, true, map.iscaleX(), map.iscaleY());
+            CoordinatePath path = CoordinatePath.create(point,true,view.iscaleX(),view.iscaleY());
             while(path.hasNext()) {
                 Coordinate c = path.next();
                 canvas.drawOval(rectFromCenter(tx.getWorldToCanvas().map(c), width, height), paint);
@@ -365,7 +369,7 @@ public class Renderer {
                 }
             }
 
-            CoordinatePath path = CoordinatePath.create(point, true, map.iscaleX(), map.iscaleY());
+            CoordinatePath path = CoordinatePath.create(point,true,view.iscaleX(),view.iscaleY());
             while(path.hasNext()) {
                 Coordinate c = path.next();
                 canvas.drawOval(rectFromCenter(tx.getWorldToCanvas().map(c), width, height), paint);
@@ -559,7 +563,7 @@ public class Renderer {
     Path path(Geometry g) {
         Path path = new Path();
 
-        CoordinatePath cpath = CoordinatePath.create(g, true, map.iscaleX(), map.iscaleY());
+        CoordinatePath cpath = CoordinatePath.create(g, true,view.iscaleX(),view.iscaleY());
         O: while(cpath.hasNext()) {
             Coordinate c = cpath.next();
             float x = (float) c.x;
