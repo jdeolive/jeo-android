@@ -244,25 +244,27 @@ public class Renderer {
 
     void renderBackground() {
         tx.reset(canvas);
-
-        RuleList rules = map.getStyle().getRules().selectByName("Map", false);
-        if (rules.isEmpty()) {
-            //nothing to do
-            return;
+        try {
+            RuleList rules = map.getStyle().getRules().selectByName("Map", false);
+            if (rules.isEmpty()) {
+                //nothing to do
+                return;
+            }
+    
+            Rule rule = rules.collapse();
+            RGB bgColor = rule.color(map, BACKGROUND_COLOR, null);
+            if (bgColor != null) {
+                bgColor = bgColor.alpha(rule.number(map, OPACITY, 1f));
+    
+                Paint p = paint(map, rule);
+                p.setStyle(Paint.Style.FILL);
+                p.setColor(color(bgColor));
+                canvas.drawRect(new Rect(0, 0, view.getWidth(), view.getHeight()), p);
+            }
         }
-
-        Rule rule = rules.collapse();
-        RGB bgColor = rule.color(map, BACKGROUND_COLOR, null);
-        if (bgColor != null) {
-            bgColor = bgColor.alpha(rule.number(map, OPACITY, 1f));
-
-            Paint p = paint(map, rule);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(color(bgColor));
-            canvas.drawRect(new Rect(0, 0, view.getWidth(), view.getHeight()), p);
+        finally {
+            tx.apply(canvas);
         }
-
-        tx.apply(canvas);
     }
 
     void renderLabels() {
