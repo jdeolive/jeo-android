@@ -4,6 +4,7 @@ import static java.lang.String.format;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.TimeZone;
 
 import org.jeo.android.geopkg.Entry.DataType;
+import org.jeo.android.geopkg.geom.GeoPkgGeomWriter;
 import org.jeo.data.Cursors;
 import org.jeo.data.DataRef;
 import org.jeo.data.Dataset;
@@ -25,19 +27,25 @@ import org.jeo.data.TilePyramid;
 import org.jeo.data.TilePyramidBuilder;
 import org.jeo.data.VectorData;
 import org.jeo.data.Workspace;
+import org.jeo.data.Cursor.Mode;
 import org.jeo.feature.Feature;
+import org.jeo.feature.Features;
+import org.jeo.feature.Field;
 import org.jeo.feature.Schema;
 import org.jeo.feature.SchemaBuilder;
 import org.jeo.filter.Filter;
 import org.jeo.geom.Envelopes;
 import org.jeo.geom.Geom;
 import org.jeo.proj.Proj;
+import org.jeo.sql.DbOP;
 import org.jeo.sql.SQL;
 import org.jeo.util.Key;
 import org.osgeo.proj4j.CoordinateReferenceSystem;
 
 import com.vividsolutions.jts.geom.Envelope;
+import com.vividsolutions.jts.geom.Geometry;
 
+import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
@@ -68,9 +76,12 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     File file;
     SQLiteDatabase db;
 
+    GeoPkgGeomWriter geomWriter;
+    
     public GeoPkgWorkspace(File file) {
         this.file = file;
         db = SQLiteDatabase.openOrCreateDatabase(file, null);
+        geomWriter = new GeoPkgGeomWriter();
     } 
 
     @Override
@@ -171,6 +182,9 @@ public class GeoPkgWorkspace implements Workspace, FileData {
 
     org.jeo.data.Cursor<Feature> cursor(FeatureEntry entry, Query q) throws IOException {
         //TODO: selective attributes
+        if (q.getMode() == Mode.APPEND) {
+            return new FeatureAppendCursor(entry, this);
+        }
 
         SQL sql = new SQL("SELECT * FROM ").name(entry.getTableName());
 
@@ -263,6 +277,36 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         }
 
         return null;
+    }
+
+    void insert(final FeatureEntry entry, final Feature feature) throws IOException {
+        
+        ContentValues values = new ContentValues();
+        for (Field fld : schema(entry)) {
+            String col = fld.getName();
+            Object obj = feature.get(col);
+            if (obj != null) {
+                if (obj instanceof Geometry) {
+                    values.put(col, geomWriter.write((Geometry)obj));
+                }
+                else {
+                    if (obj instanceof Byte || obj instanceof Short || obj instanceof Integer) {
+                        values.put(col, ((Number)obj).intValue());
+                    }
+                    if (obj instanceof Long) {
+                        values.put(col, ((Number)obj).longValue());
+                    }
+                    if (obj instanceof Float || obj instanceof Double) {
+                        values.put(col, ((Number)obj).doubleValue());
+                    }
+                    else {
+                        values.put(col, obj.toString());
+                    }
+                }
+            }
+        }
+
+        db.insert(entry.getTableName(), null, values);
     }
 
     //
