@@ -7,13 +7,16 @@ import java.util.List;
 import java.util.Map;
 
 import org.jeo.data.FileDriver;
+import org.jeo.data.FileVectorDriver;
+import org.jeo.data.VectorDriver;
+import org.jeo.feature.Schema;
 
 /**
  * Driver for the GeoPackage format, that utilizes Android SQLite capabilities. 
  * 
  * @author Justin Deoliveira, OpenGeo
  */
-public class GeoPackage extends FileDriver<GeoPkgWorkspace> {
+public class GeoPackage extends FileVectorDriver<GeoPkgWorkspace> {
 
     public static GeoPkgWorkspace open(File file) {
         return new GeoPkgWorkspace(file); 
@@ -40,4 +43,11 @@ public class GeoPackage extends FileDriver<GeoPkgWorkspace> {
         return new GeoPkgWorkspace(file);
     }
 
+    @Override
+    protected GeoPkgWorkspace create(File file, Map<?, Object> opts, Schema schema)
+            throws IOException {
+        GeoPkgWorkspace ws = open(file, opts);
+        ws.create(schema);
+        return ws;
+    }
 }
