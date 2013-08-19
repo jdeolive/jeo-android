@@ -12,6 +12,14 @@
   <name>JEO Android Module</name>
   <packaging>jar</packaging>
 
+  <repositories>
+    <repository>
+      <id>opengeo</id>
+      <name>opengeo</name>
+      <url>http://repo.opengeo.org</url>
+    </repository>
+  </repositories>
+
   <dependencies>
     <dependency>
       <groupId>org.jeo</groupId>
