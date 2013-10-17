@@ -4,7 +4,6 @@ import static java.lang.String.format;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.Connection;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -16,6 +15,7 @@ import java.util.TimeZone;
 
 import org.jeo.android.geopkg.Entry.DataType;
 import org.jeo.android.geopkg.geom.GeoPkgGeomWriter;
+import org.jeo.data.Cursor.Mode;
 import org.jeo.data.Cursors;
 import org.jeo.data.DataRef;
 import org.jeo.data.Dataset;
@@ -25,11 +25,9 @@ import org.jeo.data.Query;
 import org.jeo.data.QueryPlan;
 import org.jeo.data.TilePyramid;
 import org.jeo.data.TilePyramidBuilder;
-import org.jeo.data.VectorData;
+import org.jeo.data.VectorDataset;
 import org.jeo.data.Workspace;
-import org.jeo.data.Cursor.Mode;
 import org.jeo.feature.Feature;
-import org.jeo.feature.Features;
 import org.jeo.feature.Field;
 import org.jeo.feature.Schema;
 import org.jeo.feature.SchemaBuilder;
@@ -37,18 +35,17 @@ import org.jeo.filter.Filter;
 import org.jeo.geom.Envelopes;
 import org.jeo.geom.Geom;
 import org.jeo.proj.Proj;
-import org.jeo.sql.DbOP;
 import org.jeo.sql.SQL;
 import org.jeo.util.Key;
 import org.osgeo.proj4j.CoordinateReferenceSystem;
-
-import com.vividsolutions.jts.geom.Envelope;
-import com.vividsolutions.jts.geom.Geometry;
 
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
+
+import com.vividsolutions.jts.geom.Envelope;
+import com.vividsolutions.jts.geom.Geometry;
 
 public class GeoPkgWorkspace implements Workspace, FileData {
 
@@ -108,7 +105,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         try {
             List<DataRef<Dataset>> list = new ArrayList<DataRef<Dataset>>();
             while(c.moveToNext()) {
-                list.add(new DataRef<Dataset>(Dataset.class, c.getString(0)));
+                list.add(new DataRef<Dataset>(c.getString(0), Dataset.class));
             }
             return list;
         }
@@ -133,7 +130,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     }
     
     @Override
-    public VectorData create(Schema schema) throws IOException {
+    public VectorDataset create(Schema schema) throws IOException {
         throw new UnsupportedOperationException();
     }
 

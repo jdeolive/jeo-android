@@ -22,9 +22,9 @@ import org.jeo.data.Dataset;
 import org.jeo.data.Query;
 import org.jeo.data.Tile;
 import org.jeo.data.TileCover;
+import org.jeo.data.TileDataset;
 import org.jeo.data.TilePyramid;
-import org.jeo.data.TileSet;
-import org.jeo.data.VectorData;
+import org.jeo.data.VectorDataset;
 import org.jeo.feature.Feature;
 import org.jeo.geom.CoordinatePath;
 import org.jeo.geom.Envelopes;
@@ -125,13 +125,13 @@ public class Renderer {
             RuleList rules =
                 map.getStyle().getRules().selectById(l.getName(), true).flatten();
             
-            if (data instanceof VectorData) {
+            if (data instanceof VectorDataset) {
                 for (RuleList ruleList : rules.zgroup()) {
-                    render((VectorData)data, ruleList);
+                    render((VectorDataset)data, ruleList);
                 }
             }
             else {
-                render((TileSet)data, rules);
+                render((TileDataset)data, rules);
             }
 
         }
@@ -142,13 +142,13 @@ public class Renderer {
         LOG.debug("Rendering complete");
     }
 
-    void render(VectorData data, RuleList rules) {
+    void render(VectorDataset data, RuleList rules) {
         try {
             Query q = new Query().bounds(view.getBounds());
 
             // reproject
-            if (data.getCRS() != null) {
-                if (!Proj.equal(view.getCRS(), data.getCRS())) {
+            if (data.crs() != null) {
+                if (!Proj.equal(view.getCRS(), data.crs())) {
                     q.reproject(view.getCRS());
                 }
             }
@@ -173,13 +173,13 @@ public class Renderer {
         }
     }
 
-    void render(TileSet data, RuleList rules) {
+    void render(TileDataset data, RuleList rules) {
         tx.reset(canvas);
 
         Rule rule = rules.collapse();
 
         try {
-            TilePyramid pyr = data.getPyramid();
+            TilePyramid pyr = data.pyramid();
 
             TileCover cov = pyr.cover(view.getBounds(), view.getWidth(), view.getHeight());
             cov.fill(data);

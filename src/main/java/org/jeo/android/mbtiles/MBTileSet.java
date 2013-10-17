@@ -11,9 +11,9 @@ import org.jeo.data.Cursor;
 import org.jeo.data.Driver;
 import org.jeo.data.FileData;
 import org.jeo.data.Tile;
+import org.jeo.data.TileDataset;
 import org.jeo.data.TilePyramid;
 import org.jeo.data.TilePyramidBuilder;
-import org.jeo.data.TileSet;
 import org.jeo.geom.Envelopes;
 import org.jeo.proj.Proj;
 import org.jeo.util.Key;
@@ -24,7 +24,7 @@ import android.database.sqlite.SQLiteDatabase;
 
 import com.vividsolutions.jts.geom.Envelope;
 
-public class MBTileSet implements TileSet, FileData {
+public class MBTileSet implements TileDataset, FileData {
 
     static final String METADATA = "metadata";
     static final String TILES = "tiles";
@@ -117,7 +117,7 @@ public class MBTileSet implements TileSet, FileData {
     }
 
     @Override
-    public CoordinateReferenceSystem getCRS() throws IOException {
+    public CoordinateReferenceSystem crs() throws IOException {
         return Proj.EPSG_900913;
     }
 
@@ -130,7 +130,7 @@ public class MBTileSet implements TileSet, FileData {
                 Envelope b = Envelopes.parse(c.getString(0));
 
                 // bounds specified in wgs84
-                return Proj.reproject(b, Proj.EPSG_4326, getCRS());
+                return Proj.reproject(b, Proj.EPSG_4326, crs());
             }
         }
         finally {
@@ -138,13 +138,13 @@ public class MBTileSet implements TileSet, FileData {
         }
 
         // fall back to bounds of crs
-        return Proj.bounds(getCRS());
+        return Proj.bounds(crs());
     }
     
     @Override
-    public TilePyramid getPyramid() throws IOException {
+    public TilePyramid pyramid() throws IOException {
         TilePyramidBuilder tpb = TilePyramid.build();
-        tpb.bounds(Proj.bounds(getCRS()));
+        tpb.bounds(Proj.bounds(crs()));
 
         android.database.Cursor c = db.query(TILES, new String[]{"zoom_level"}, null, null, 
             "zoom_level", null, "zoom_level");

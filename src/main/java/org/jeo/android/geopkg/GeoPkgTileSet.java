@@ -4,17 +4,17 @@ import java.io.IOException;
 
 import org.jeo.data.Cursor;
 import org.jeo.data.Tile;
+import org.jeo.data.TileDataset;
 import org.jeo.data.TilePyramid;
-import org.jeo.data.TileSet;
 
-public class GeoPkgTileSet extends GeoPkgDataset<TileEntry> implements TileSet {
+public class GeoPkgTileSet extends GeoPkgDataset<TileEntry> implements TileDataset {
 
     GeoPkgTileSet(TileEntry entry, GeoPkgWorkspace geopkg) {
         super(entry, geopkg);
     }
 
     @Override
-    public TilePyramid getPyramid() {
+    public TilePyramid pyramid() {
         return entry.getTilePyramid();
     }
 

@@ -5,10 +5,10 @@ import static org.jeo.map.CartoCSS.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jeo.data.VectorData;
+import org.jeo.data.VectorDataset;
 import org.jeo.data.mem.MemVector;
+import org.jeo.feature.BasicFeature;
 import org.jeo.feature.Feature;
-import org.jeo.feature.ListFeature;
 import org.jeo.feature.Schema;
 
 import com.vividsolutions.jts.geom.Polygon;
@@ -94,11 +94,11 @@ public class LabelIndex {
      * from {@link Label#getText()}. 
      * </p> 
      */
-    public VectorData features() {
+    public VectorDataset features() {
         MemVector mem = new MemVector(Schema.build("labels")
             .field("geometry", Polygon.class).field("text", String.class).schema());
         for (Label l : all()) {
-            Feature f = new ListFeature(null, null, mem.getSchema());
+            Feature f = new BasicFeature(null, mem.schema());
             f.put(l.shape());
             f.put("text", l.getText());
             mem.add(f);

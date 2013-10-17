@@ -3,8 +3,8 @@ package org.jeo.android.geopkg;
 import java.io.IOException;
 
 import org.jeo.data.Cursor;
+import org.jeo.feature.BasicFeature;
 import org.jeo.feature.Feature;
-import org.jeo.feature.ListFeature;
 
 public class FeatureAppendCursor extends Cursor<Feature> {
 
@@ -26,7 +26,7 @@ public class FeatureAppendCursor extends Cursor<Feature> {
 
     @Override
     public Feature next() throws IOException {
-        return next = new ListFeature(null, null, ws.schema(entry));
+        return next = new BasicFeature(null, ws.schema(entry));
     }
 
     @Override

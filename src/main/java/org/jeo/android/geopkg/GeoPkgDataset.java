@@ -47,7 +47,7 @@ public class GeoPkgDataset<T extends Entry> implements Dataset {
     }
     
     @Override
-    public CoordinateReferenceSystem getCRS() throws IOException {
+    public CoordinateReferenceSystem crs() throws IOException {
         if (entry.getSrid() != null) {
             return Proj.crs(entry.getSrid());
         }
