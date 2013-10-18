@@ -64,12 +64,6 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     /** name of tile matrix metadata table */
     static final String TILE_MATRIX_METADATA = "tile_matrix_metadata";
 
-    /** date format */
-    static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-mm-dd'T'HH:MM:ss.SSS'Z'");
-    static {
-        DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
-    }
-
     File file;
     SQLiteDatabase db;
 
@@ -406,12 +400,8 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         e.setTableName(c.getString(0));
         e.setIdentifier(c.getString(2));
         e.setDescription(c.getString(3));
+        e.setLastChange(c.getString(4));
 
-        try {
-            e.setLastChange(DATE_FORMAT.parse(c.getString(4)));
-        } catch (ParseException ex) {
-            throw new RuntimeException(ex);
-        }
         e.setBounds(new Envelope(
             c.getDouble(5), c.getDouble(7), c.getDouble(6), c.getDouble(8)));
         e.setSrid(c.getInt(9));
