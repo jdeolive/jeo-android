@@ -1,7 +1,7 @@
 package org.jeo.android.graphics;
 
 import org.jeo.map.Map;
-import org.jeo.map.Viewport;
+import org.jeo.map.View;
 import org.osgeo.proj4j.CoordinateReferenceSystem;
 
 import android.graphics.Canvas;
@@ -16,19 +16,19 @@ import com.vividsolutions.jts.geom.Envelope;
  * 
  * @author Justin Deoliveira, OpenGeo
  */
-public class TransformPipeline implements Viewport.Listener {
+public class TransformPipeline implements View.Listener {
 
     Transform worldToCanvas;
     Transform canvasToWorld;
     Transform canvasToScreen;
 
-    public TransformPipeline(Viewport view) {
+    public TransformPipeline(View view) {
         view.bind(this);
 
         update(view);
     }
 
-    public void update(Viewport view) {
+    public void update(View view) {
         // transformation from map coordinates to canvas coordinates
         worldToCanvas = new Transform();
         worldToCanvas.preScale((float)view.scaleX(), (float)-view.scaleY());
@@ -119,17 +119,17 @@ public class TransformPipeline implements Viewport.Listener {
 //    }
 
     @Override
-    public void onBoundsChanged(Viewport view, Envelope bounds, Envelope old) {
+    public void onBoundsChanged(View view, Envelope bounds, Envelope old) {
         update(view);
     }
 
     @Override
-    public void onSizeChanged(Viewport view, int width, int height, int oldWidth, int oldHeight) {
+    public void onSizeChanged(View view, int width, int height, int oldWidth, int oldHeight) {
         update(view);
     }
 
     @Override
-    public void onCRSChanged(Viewport view, CoordinateReferenceSystem crs, CoordinateReferenceSystem old) {
+    public void onCRSChanged(View view, CoordinateReferenceSystem crs, CoordinateReferenceSystem old) {
     }
 
     /**

@@ -34,7 +34,7 @@ import org.jeo.map.Map;
 import org.jeo.map.RGB;
 import org.jeo.map.Rule;
 import org.jeo.map.RuleList;
-import org.jeo.map.Viewport;
+import org.jeo.map.View;
 import org.jeo.proj.Proj;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,7 +70,7 @@ public class Renderer {
     static Logger LOG = LoggerFactory.getLogger(Renderer.class);
 
     /** the view/map being rendered */
-    Viewport view;
+    View view;
     Map map;
 
     /** the transformation pipeline */
@@ -97,7 +97,7 @@ public class Renderer {
         return labels;
     }
 
-    public void init(Viewport view) {
+    public void init(View view) {
         this.view = view;
         
         map = view.getMap();
