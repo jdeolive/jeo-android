@@ -36,6 +36,7 @@ import org.jeo.map.Rule;
 import org.jeo.map.RuleList;
 import org.jeo.map.View;
 import org.jeo.proj.Proj;
+import org.osgeo.proj4j.CoordinateReferenceSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,12 +145,18 @@ public class Renderer {
 
     void render(VectorDataset data, RuleList rules) {
         try {
-            Query q = new Query().bounds(view.getBounds());
+            // build up the data query
+            Query q = new Query();
 
+            // bounds, we may have to reproject it
+            Envelope bbox = view.getBounds();
+            CoordinateReferenceSystem crs = data.crs();
+            
             // reproject
-            if (data.crs() != null) {
-                if (!Proj.equal(view.getCRS(), data.crs())) {
+            if (crs != null) {
+                if (view.getCRS() != null && !Proj.equal(view.getCRS(), data.crs())) {
                     q.reproject(view.getCRS());
+                    bbox = Proj.reproject(bbox, view.getCRS(), crs);
                 }
             }
             else {
@@ -157,6 +164,7 @@ public class Renderer {
                     "Layer "+data.getName()+" specifies no projection, assuming map projection");
             }
 
+            q.bounds(bbox);
             for (Feature f : data.cursor(q)) {
                 RuleList rs = rules.match(f);
                 if (rs.isEmpty()) {
