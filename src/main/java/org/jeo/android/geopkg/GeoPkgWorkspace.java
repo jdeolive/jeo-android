@@ -99,7 +99,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         try {
             List<DataRef<Dataset>> list = new ArrayList<DataRef<Dataset>>();
             while(c.moveToNext()) {
-                list.add(new DataRef<Dataset>(c.getString(0), Dataset.class));
+                list.add(new DataRef<Dataset>(c.getString(0), Dataset.class, getDriver(), this));
             }
             return list;
         }
@@ -212,7 +212,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         log(format("SELECT * FROM %s LIMIT 1", entry.getTableName()));
 
         Cursor c = db.query(entry.getTableName(), null, null, null, null, null, null, "1");
-        c.moveToNext();
+        boolean data = c.moveToNext();
 
         SchemaBuilder sb = Schema.build(entry.getTableName());
         for (int i = 0; i < c.getColumnCount(); i++) {
@@ -223,19 +223,20 @@ public class GeoPkgWorkspace implements Workspace, FileData {
                 sb.field(col, entry.getGeometryType().getType(), crs);
             }
             else {
-                Class type = null;
-                switch(c.getType(i)) {
-                case Cursor.FIELD_TYPE_INTEGER:
-                    type = Integer.class;
-                    break;
-                case Cursor.FIELD_TYPE_FLOAT:
-                    type = Double.class;
-                    break;
-                case Cursor.FIELD_TYPE_BLOB:
-                    type = byte[].class;
-                    break;
-                default:
-                    type = String.class;
+                Class type = String.class;
+                if (data) {
+                    // can only access type info if we actually have data
+                    switch(c.getType(i)) {
+                    case Cursor.FIELD_TYPE_INTEGER:
+                        type = Integer.class;
+                        break;
+                    case Cursor.FIELD_TYPE_FLOAT:
+                        type = Double.class;
+                        break;
+                    case Cursor.FIELD_TYPE_BLOB:
+                        type = byte[].class;
+                        break;
+                    }
                 }
                 
                 sb.field(col, type);
