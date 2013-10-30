@@ -26,6 +26,7 @@ import org.jeo.data.TileDataset;
 import org.jeo.data.TilePyramid;
 import org.jeo.data.VectorDataset;
 import org.jeo.feature.Feature;
+import org.jeo.filter.Filter;
 import org.jeo.geom.CoordinatePath;
 import org.jeo.geom.Envelopes;
 import org.jeo.geom.Geom;
@@ -123,12 +124,14 @@ public class Renderer {
             }
 
             Dataset data = l.getData();
+            Filter filter = l.getFilter();
+
             RuleList rules =
                 map.getStyle().getRules().selectById(l.getName(), true).flatten();
             
             if (data instanceof VectorDataset) {
                 for (RuleList ruleList : rules.zgroup()) {
-                    render((VectorDataset)data, ruleList);
+                    render((VectorDataset)data, ruleList, filter);
                 }
             }
             else {
@@ -143,7 +146,7 @@ public class Renderer {
         LOG.debug("Rendering complete");
     }
 
-    void render(VectorDataset data, RuleList rules) {
+    void render(VectorDataset data, RuleList rules, Filter filter) {
         try {
             // build up the data query
             Query q = new Query();
@@ -165,6 +168,10 @@ public class Renderer {
             }
 
             q.bounds(bbox);
+            if (filter != null) {
+                q.filter(filter);
+            }
+
             for (Feature f : data.cursor(q)) {
                 RuleList rs = rules.match(f);
                 if (rs.isEmpty()) {
