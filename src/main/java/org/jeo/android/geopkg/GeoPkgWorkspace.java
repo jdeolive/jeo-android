@@ -182,7 +182,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         QueryPlan qp = new QueryPlan(q);
         encodeQuery(sql, q, qp);
 
-        return new FeatureCursor(db.rawQuery(log(sql.toString()), null), schema(entry));
+        return qp.apply(new FeatureCursor(db.rawQuery(log(sql.toString()), null), schema(entry)));
     }
 
     void encodeQuery(SQL sql, Query q, QueryPlan qp) {
