@@ -4,21 +4,18 @@ import static java.lang.String.format;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
 import org.jeo.android.geopkg.Entry.DataType;
 import org.jeo.android.geopkg.geom.GeoPkgGeomWriter;
 import org.jeo.data.Cursor.Mode;
 import org.jeo.data.Cursors;
-import org.jeo.data.DataRef;
 import org.jeo.data.Dataset;
+import org.jeo.data.DatasetHandle;
 import org.jeo.data.Driver;
 import org.jeo.data.FileData;
 import org.jeo.data.Query;
@@ -93,13 +90,13 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     }
 
     @Override
-    public Iterable<DataRef<Dataset>> list() {
+    public Iterable<DatasetHandle> list() {
         Cursor c = 
             db.query(GEOPACKAGE_CONTENTS, new String[]{"table_name"}, null, null, null, null, null);
         try {
-            List<DataRef<Dataset>> list = new ArrayList<DataRef<Dataset>>();
+            List<DatasetHandle> list = new ArrayList<DatasetHandle>();
             while(c.moveToNext()) {
-                list.add(new DataRef<Dataset>(c.getString(0), Dataset.class, getDriver(), this));
+                list.add(new DatasetHandle(c.getString(0), Dataset.class, getDriver(), this));
             }
             return list;
         }
