@@ -43,6 +43,10 @@ import android.util.Log;
 
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.jeo.sql.PrimaryKey;
+import org.jeo.sql.PrimaryKeyColumn;
 
 public class GeoPkgWorkspace implements Workspace, FileData {
 
@@ -152,7 +156,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         SQL sql = new SQL("SELECT count(*) FROM ").name(entry.getTableName());
 
         QueryPlan qp = new QueryPlan(q);
-        encodeQuery(sql, q, qp);
+        encodeQuery(sql, q, qp, createPrimaryKey(entry));
 
         if (q.isFiltered() && !qp.isFiltered()) {
             return Cursors.size(cursor(entry, q));
@@ -177,17 +181,25 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         SQL sql = new SQL("SELECT * FROM ").name(entry.getTableName());
 
         QueryPlan qp = new QueryPlan(q);
-        encodeQuery(sql, q, qp);
+        encodeQuery(sql, q, qp, primaryKey(entry));
 
-        return qp.apply(new FeatureCursor(db.rawQuery(log(sql.toString()), null), schema(entry)));
+        org.jeo.data.Cursor<Feature> c = new FeatureCursor(db.rawQuery(log(sql.toString()), null), entry, this);
+
+        if (!Envelopes.isNull(q.getBounds())) {
+            c = Cursors.intersects(c, q.getBounds());
+        }
+
+        return qp.apply(c);
     }
 
-    void encodeQuery(SQL sql, Query q, QueryPlan qp) {
+    void encodeQuery(SQL sql, Query q, QueryPlan qp, PrimaryKey pk) {
         if (!Filter.isTrueOrNull(q.getFilter())) {
             GeoPkgFilterSQLEncoder sqlfe = new GeoPkgFilterSQLEncoder();
+            sqlfe.setPrimaryKey(pk);
             sqlfe.setPrepared(false);
             try {
-                sql.add(" WHERE ").add(sqlfe.encode(q.getFilter(), null));
+                String where = sqlfe.encode(q.getFilter(), null);
+                sql.add(" WHERE ").add(where);
                 qp.filtered();
             }
             catch(Exception e) {
@@ -197,12 +209,26 @@ public class GeoPkgWorkspace implements Workspace, FileData {
 
         if (q.getLimit() != null) {
             sql.add(" LIMIT ").add(q.getLimit());
-            qp.offsetted();
-        }
-        if (q.getOffset() != null) {
-            sql.add(" OFFSET ").add(q.getOffset());
             qp.limited();
         }
+        if (q.getOffset() != null) {
+            if (q.getLimit() == null) {
+                sql.add(" LIMIT -1");
+            }
+            sql.add(" OFFSET ").add(q.getOffset());
+            qp.offsetted();
+        }
+    }
+
+    public PrimaryKey primaryKey(FeatureEntry entry) throws IOException {
+        if (entry.getPrimaryKey() == null) {
+            try {
+                entry.setPrimaryKey(createPrimaryKey(entry));
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        }
+        return entry.getPrimaryKey();
     }
 
     Schema createSchema(FeatureEntry entry) {
@@ -240,6 +266,28 @@ public class GeoPkgWorkspace implements Workspace, FileData {
             }
         }
         return sb.schema();
+    }
+
+    PrimaryKey createPrimaryKey(FeatureEntry entry) {
+        // @revisit - we're only extracting a single key (the spec implies only one)
+        PrimaryKey pk = null;
+        Cursor cursor = db.query("sqlite_master", new String[] {"sql"}, "type=? and name=?", new String[] {"table", entry.tableName}, null, null, null);
+        if (cursor.moveToNext()) {
+            String tableDef = cursor.getString(0);
+            String pkName = parsePrimaryKeyColumn(tableDef);
+            if (pkName != null) {
+                pk = new PrimaryKey();
+                PrimaryKeyColumn col = new PrimaryKeyColumn(pkName, new Field(pkName, Integer.class));
+                col.setAutoIncrement(true);
+                pk.getColumns().add(col);
+            }
+        }
+        return pk;
+    }
+
+    static String parsePrimaryKeyColumn(String tableDef) {
+        Matcher matcher = Pattern.compile("\"([^\"]+)\" INTEGER.*PRIMARY KEY").matcher(tableDef);
+        return matcher.find() ? matcher.group(1) : null;
     }
 
     FeatureEntry feature(String name) {

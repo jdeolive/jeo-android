@@ -12,17 +12,22 @@ import org.jeo.feature.Field;
 import org.jeo.feature.Schema;
 
 import com.vividsolutions.jts.geom.Geometry;
+import org.jeo.sql.PrimaryKey;
+import org.jeo.sql.PrimaryKeyColumn;
 
 public class FeatureCursor extends Cursor<Feature> {
 
     android.database.Cursor cursor;
     Schema schema;
+    PrimaryKey primaryKey;
     Boolean next = null;
     GeoPkgGeomReader geomReader;
 
-    FeatureCursor(android.database.Cursor cursor, Schema schema) {
+    FeatureCursor(android.database.Cursor cursor, FeatureEntry entry, GeoPkgWorkspace workspace)
+        throws IOException {
         this.cursor = cursor;
-        this.schema = schema;
+        this.schema = workspace.schema(entry);
+        this.primaryKey = workspace.primaryKey(entry);
         geomReader = new GeoPkgGeomReader();
     }
 
@@ -65,9 +70,24 @@ public class FeatureCursor extends Cursor<Feature> {
     
                     values.add(obj);
                 }
-    
-                //TODO: feature id
-                return new BasicFeature(null, values, schema);
+
+                String fid = null;
+                if (primaryKey != null) {
+                    StringBuilder buf = new StringBuilder();
+                    for (PrimaryKeyColumn pkcol : primaryKey.getColumns()) {
+                        int colidx = cursor.getColumnIndex(pkcol.getName());
+                        Object obj = cursor.getString(colidx);
+                        if (obj != null) {
+                            buf.append(obj);
+                        }
+                        buf.append(".");
+                    }
+
+                    buf.setLength(buf.length() - 1);
+                    fid = buf.toString();
+                }
+
+                return new BasicFeature(fid, values, schema);
             }
             return null;
         }
