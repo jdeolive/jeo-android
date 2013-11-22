@@ -183,7 +183,10 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         QueryPlan qp = new QueryPlan(q);
         encodeQuery(sql, q, qp, primaryKey(entry));
 
-        org.jeo.data.Cursor<Feature> c = new FeatureCursor(db.rawQuery(log(sql.toString()), null), entry, this);
+        org.jeo.data.Cursor.Mode mode = q.getMode() == Mode.UPDATE ?
+                org.jeo.data.Cursor.UPDATE :
+                org.jeo.data.Cursor.READ;
+        org.jeo.data.Cursor<Feature> c = new FeatureCursor(mode, db.rawQuery(log(sql.toString()), null), entry, this);
 
         if (!Envelopes.isNull(q.getBounds())) {
             c = Cursors.intersects(c, q.getBounds());
@@ -316,8 +319,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         return null;
     }
 
-    void insert(final FeatureEntry entry, final Feature feature) throws IOException {
-        
+    ContentValues getValues(final FeatureEntry entry, final Feature feature) throws IOException {
         ContentValues values = new ContentValues();
         for (Field fld : schema(entry)) {
             String col = fld.getName();
@@ -342,8 +344,23 @@ public class GeoPkgWorkspace implements Workspace, FileData {
                 }
             }
         }
+        return values;
+    }
 
+    void insert(final FeatureEntry entry, final Feature feature) throws IOException {
+        ContentValues values = getValues(entry, feature);
         db.insert(entry.getTableName(), null, values);
+    }
+
+    void update(final FeatureEntry entry, final Feature feature) throws IOException {
+        ContentValues values = getValues(entry, feature);
+        String pk = entry.getPrimaryKey().getColumns().get(0).getName();
+        db.update(entry.getTableName(), values, pk + "=?", new String[] {feature.getId()});
+    }
+
+    void delete(final FeatureEntry entry, final Feature feature) throws IOException {
+        String pk = entry.getPrimaryKey().getColumns().get(0).getName();
+        db.delete(entry.getTableName(), pk + "=?", new String[] {feature.getId()});
     }
 
     //

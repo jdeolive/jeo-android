@@ -18,16 +18,22 @@ import org.jeo.sql.PrimaryKeyColumn;
 public class FeatureCursor extends Cursor<Feature> {
 
     android.database.Cursor cursor;
-    Schema schema;
-    PrimaryKey primaryKey;
+    final Schema schema;
+    final PrimaryKey primaryKey;
     Boolean next = null;
-    GeoPkgGeomReader geomReader;
+    final GeoPkgGeomReader geomReader;
+    Feature feature;
+    final GeoPkgWorkspace workspace;
+    final FeatureEntry entry;
 
-    FeatureCursor(android.database.Cursor cursor, FeatureEntry entry, GeoPkgWorkspace workspace)
+    FeatureCursor(Mode mode, android.database.Cursor cursor, FeatureEntry entry, GeoPkgWorkspace workspace)
         throws IOException {
+        super(mode);
         this.cursor = cursor;
+        this.entry = entry;
         this.schema = workspace.schema(entry);
         this.primaryKey = workspace.primaryKey(entry);
+        this.workspace = workspace;
         geomReader = new GeoPkgGeomReader();
     }
 
@@ -87,14 +93,30 @@ public class FeatureCursor extends Cursor<Feature> {
                     fid = buf.toString();
                 }
 
-                return new BasicFeature(fid, values, schema);
+                return feature = new BasicFeature(fid, values, schema);
             }
-            return null;
+            return feature = null;
         }
         finally {
             next = null;
         }
 
+    }
+
+    @Override
+    protected void doRemove() throws IOException {
+        if (feature == null) {
+            throw new IllegalStateException("nothing to remove");
+        }
+        workspace.delete(entry, feature);
+    }
+
+    @Override
+    protected void doWrite() throws IOException {
+        if (feature == null) {
+            throw new IllegalStateException("nothing to write");
+        }
+        workspace.update(entry, feature);
     }
 
     @Override
