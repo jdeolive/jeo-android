@@ -22,7 +22,6 @@ import org.jeo.data.Query;
 import org.jeo.data.QueryPlan;
 import org.jeo.data.TilePyramid;
 import org.jeo.data.TilePyramidBuilder;
-import org.jeo.data.VectorDataset;
 import org.jeo.data.Workspace;
 import org.jeo.feature.Feature;
 import org.jeo.feature.Field;
@@ -43,6 +42,7 @@ import android.util.Log;
 
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
+import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.jeo.sql.PrimaryKey;
@@ -69,10 +69,14 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     SQLiteDatabase db;
 
     GeoPkgGeomWriter geomWriter;
+
+    GeoPkgTypes dbtypes;
     
     public GeoPkgWorkspace(File file) {
         this.file = file;
         db = SQLiteDatabase.openOrCreateDatabase(file, null);
+
+        dbtypes = new GeoPkgTypes();
         geomWriter = new GeoPkgGeomWriter();
     } 
 
@@ -124,9 +128,158 @@ public class GeoPkgWorkspace implements Workspace, FileData {
         return null;
     }
     
-    @Override
-    public VectorDataset create(Schema schema) throws IOException {
-        throw new UnsupportedOperationException();
+    public GeoPkgVector create(Schema schema) throws IOException {
+        create(new FeatureEntry(), schema);
+        return (GeoPkgVector) get(schema.getName());
+    }
+
+    public void create(FeatureEntry entry, Schema schema) throws IOException {
+        //clone entry so we can work on it
+        FeatureEntry e = new FeatureEntry();
+        e.init(entry);
+        e.setTableName(schema.getName());
+
+        if (e.getGeometryColumn() != null) {
+            //check it
+            if (schema.field(e.getGeometryColumn()) == null) {
+                throw new IllegalArgumentException(
+                        format("Geometry column %s does not exist in schema", e.getGeometryColumn()));
+            }
+        }
+        else {
+            e.setGeometryColumn(findGeometryName(schema));
+        }
+
+        if (e.getIdentifier() == null) {
+            e.setIdentifier(schema.getName());
+        }
+        if (e.getDescription() == null) {
+            e.setDescription(e.getIdentifier());
+        }
+
+        //check for srid
+        if (e.getSrid() == null) {
+            e.setSrid(findSRID(schema));
+        }
+        if (e.getSrid() == null) {
+            throw new IllegalArgumentException("Entry must have srid");
+        }
+
+        //check for bounds
+        if (e.getBounds() == null) {
+            //TODO: this is pretty inaccurate
+            e.setBounds(Proj.bounds(Proj.crs(e.getSrid())));
+        }
+        if (e.getBounds() == null) {
+            throw new IllegalArgumentException("Entry must have bounds");
+        }
+
+        if (e.getCoordDimension() == null) {
+            e.setCoordDimension(2);
+        }
+
+        if (e.getGeometryType() == null) {
+            e.setGeometryType(findGeometryType(schema));
+        }
+        //mark changed
+        e.lastChange(new Date());
+
+        //create the feature table
+        try {
+            createFeatureTable(schema, e);
+        } catch (Exception ex) {
+            throw new IOException("Error creating feature table", ex);
+        }
+
+        try {
+            addGeopackageContentsEntry(e);
+        } catch (Exception ex) {
+            throw new IOException("Error updating " + GEOPACKAGE_CONTENTS, ex);
+        }
+
+        //update the entry
+        entry.init(e);
+    }
+
+    void createFeatureTable(final Schema schema, final FeatureEntry entry) throws Exception {
+        SQL sql = new SQL("CREATE TABLE ").name(schema.getName()).add("(");
+
+        sql.name(findPrimaryKeyColumnName(schema)).add(" INTEGER PRIMARY KEY, ");
+        for (Field f : schema) {
+            sql.name(f.getName()).add(" ");
+            if (f.isGeometry()) {
+                sql.add(Geom.Type.from(f.getType()).getSimpleName());
+            } else {
+                String t = dbtypes.toName(f.getType());
+                sql.add(t != null ? t : "TEXT");
+            }
+
+            sql.add(", ");
+        }
+        sql.trim(2).add(")");
+
+        db.execSQL(log(sql.toString()));
+
+        //update geometry columns
+        addGeometryColumnsEntry(schema, entry);
+    }
+
+    void addGeopackageContentsEntry(final FeatureEntry entry) throws Exception {
+        //addCRS(e.getSrid());
+        ContentValues values = new ContentValues();
+        values.put("table_name", entry.getTableName());
+        values.put("data_type", entry.getDataType().value());
+        values.put("identifier", entry.getIdentifier());
+        values.put("description", entry.getDescription());
+        values.put("last_change", entry.getLastChange());
+        Envelope b = entry.getBounds();
+        if (b != null) {
+            values.put("min_x", b.getMinX());
+            values.put("min_y", b.getMinY());
+            values.put("max_x", b.getMaxX());
+            values.put("max_y", b.getMaxY());
+        }
+        values.put("srid", entry.getSrid());
+
+        db.insert(GEOPACKAGE_CONTENTS, null, values);
+    }
+
+    void addGeometryColumnsEntry(final Schema schema, final FeatureEntry entry)
+        throws Exception {
+
+        ContentValues values = new ContentValues(5);
+        values.put("f_table_name", entry.getTableName());
+        values.put("f_geometry_column", entry.getGeometryColumn());
+        values.put("geometry_type", entry.getGeometryType().getSimpleName());
+        values.put("coord_dimension", entry.getCoordDimension());
+        values.put("srid", entry.getSrid());
+
+        db.insert(GEOMETRY_COLUMNS, null, values);
+    }
+
+    String findPrimaryKeyColumnName(Schema schema) {
+        String[] names = new String[]{"fid", "gid", "oid"};
+        for (String name : names) {
+            if (schema.field(name) == null && schema.field(name.toUpperCase()) == null) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    Integer findSRID(Schema schema) {
+        CoordinateReferenceSystem crs = schema.crs();
+        return crs != null ? Proj.epsgCode(crs) : null;
+    }
+
+    Geom.Type findGeometryType(Schema schema) {
+        Field geom = schema.geometry();
+        return geom != null ? Geom.Type.from(geom.getType()) : null;
+    }
+
+    String findGeometryName(Schema schema) {
+        Field geom = schema.geometry();
+        return geom != null ? geom.getName() : null;
     }
 
     @Override
