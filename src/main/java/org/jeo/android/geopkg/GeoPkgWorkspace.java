@@ -15,7 +15,6 @@ import org.jeo.android.geopkg.geom.GeoPkgGeomWriter;
 import org.jeo.data.Cursor.Mode;
 import org.jeo.data.Cursors;
 import org.jeo.data.Dataset;
-import org.jeo.data.DatasetHandle;
 import org.jeo.data.Driver;
 import org.jeo.data.FileData;
 import org.jeo.data.Query;
@@ -27,7 +26,6 @@ import org.jeo.feature.Feature;
 import org.jeo.feature.Field;
 import org.jeo.feature.Schema;
 import org.jeo.feature.SchemaBuilder;
-import org.jeo.filter.Filter;
 import org.jeo.geom.Envelopes;
 import org.jeo.geom.Geom;
 import org.jeo.proj.Proj;
@@ -45,6 +43,8 @@ import com.vividsolutions.jts.geom.Geometry;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.jeo.data.Handle;
+import org.jeo.filter.Filters;
 import org.jeo.sql.PrimaryKey;
 import org.jeo.sql.PrimaryKeyColumn;
 
@@ -98,13 +98,13 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     }
 
     @Override
-    public Iterable<DatasetHandle> list() {
+    public Iterable<Handle<Dataset>> list() {
         Cursor c = 
             db.query(GEOPACKAGE_CONTENTS, new String[]{"table_name"}, null, null, null, null, null);
         try {
-            List<DatasetHandle> list = new ArrayList<DatasetHandle>();
+            List<Handle<Dataset>> list = new ArrayList<Handle<Dataset>>();
             while(c.moveToNext()) {
-                list.add(new DatasetHandle(c.getString(0), Dataset.class, getDriver(), this));
+                list.add(Handle.to(c.getString(0), this));
             }
             return list;
         }
@@ -349,7 +349,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     }
 
     void encodeQuery(SQL sql, Query q, QueryPlan qp, PrimaryKey pk) {
-        if (!Filter.isTrueOrNull(q.getFilter())) {
+        if (!Filters.isTrueOrNull(q.getFilter())) {
             GeoPkgFilterSQLEncoder sqlfe = new GeoPkgFilterSQLEncoder();
             sqlfe.setPrimaryKey(pk);
             sqlfe.setPrepared(false);
