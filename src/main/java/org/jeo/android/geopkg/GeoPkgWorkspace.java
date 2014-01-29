@@ -65,19 +65,19 @@ import org.jeo.sql.PrimaryKeyColumn;
 public class GeoPkgWorkspace implements Workspace, FileData {
 
     /** name of geopackage contents table */
-    static final String GEOPACKAGE_CONTENTS = "geopackage_contents";
+    static final String GEOPACKAGE_CONTENTS = "gpkg_contents";
     
     /** name of geoemtry columns table */
-    static final String GEOMETRY_COLUMNS = "geometry_columns";
+    static final String GEOMETRY_COLUMNS = "gpkg_geometry_columns";
     
     /** name of geoemtry columns table */
-    static final String SPATIAL_REF_SYS = "spatial_ref_sys";
+    static final String SPATIAL_REF_SYS = "gpkg_spatial_ref_sys";
     
     /** name of tile metadata table */
-    static final String TILE_TABLE_METADATA = "tile_table_metadata";
+    static final String TILE_MATRIX = "gpkg_tile_matrix";
     
     /** name of tile matrix metadata table */
-    static final String TILE_MATRIX_METADATA = "tile_matrix_metadata";
+    static final String TILE_MATRIX_SET = "gpkg_tile_matrix_set";
 
     File file;
     SQLiteDatabase db;
@@ -188,10 +188,6 @@ public class GeoPkgWorkspace implements Workspace, FileData {
             throw new IllegalArgumentException("Entry must have bounds");
         }
 
-        if (e.getCoordDimension() == null) {
-            e.setCoordDimension(2);
-        }
-
         if (e.getGeometryType() == null) {
             e.setGeometryType(findGeometryType(schema));
         }
@@ -261,12 +257,13 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     void addGeometryColumnsEntry(final Schema schema, final FeatureEntry entry)
         throws Exception {
 
-        ContentValues values = new ContentValues(5);
-        values.put("f_table_name", entry.getTableName());
-        values.put("f_geometry_column", entry.getGeometryColumn());
-        values.put("geometry_type", entry.getGeometryType().getSimpleName());
-        values.put("coord_dimension", entry.getCoordDimension());
-        values.put("srid", entry.getSrid());
+        ContentValues values = new ContentValues(6);
+        values.put("table_name", entry.getTableName());
+        values.put("column_name", entry.getGeometryColumn());
+        values.put("geometry_type_name", entry.getGeometryType().getSimpleName());
+        values.put("z", entry.hasZ());
+        values.put("m", entry.hasM());
+        values.put("srs_id", entry.getSrid());
 
         db.insert(GEOMETRY_COLUMNS, null, values);
     }
@@ -462,9 +459,9 @@ public class GeoPkgWorkspace implements Workspace, FileData {
 
     FeatureEntry feature(String name) {
         String sql = String.format(
-            "SELECT a.*, b.f_geometry_column, b.geometry_type, b.coord_dimension" +
+            "SELECT a.*, b.column_name, b.geometry_type_name, b.z, b.m" +
                     " FROM %s a, %s b" + 
-                   " WHERE a.table_name = b.f_table_name" +
+                   " WHERE a.table_name = b.table_name" +
                      " AND a.table_name = ?" + 
                      " AND a.data_type = ?", 
                  GEOPACKAGE_CONTENTS, GEOMETRY_COLUMNS);
@@ -479,7 +476,8 @@ public class GeoPkgWorkspace implements Workspace, FileData {
             initEntry(e, c);
             e.setGeometryColumn(c.getString(10));
             e.setGeometryType(Geom.Type.from(c.getString(11)));
-            e.setCoordDimension((c.getInt(12)));
+            e.setZ(c.getInt(12) != 0);
+            e.setM(c.getInt(13) != 0);
             return e;
         }
 
@@ -535,10 +533,11 @@ public class GeoPkgWorkspace implements Workspace, FileData {
     //
     TileEntry tile(String name) {
         String sql = format(
-            "SELECT a.*, b.is_times_two_zoom" +
-             " FROM %s a, %s b" + 
-            " WHERE a.table_name = ?" + 
-              " AND a.data_type = ?", GEOPACKAGE_CONTENTS, TILE_TABLE_METADATA);
+            "SELECT a.*" +
+             " FROM %s a, %s b" +
+            " WHERE a.table_name = b.table_name" + 
+            "   AND a.table_name = ?" + 
+              " AND a.data_type = ?", GEOPACKAGE_CONTENTS, TILE_MATRIX_SET);
 
 
         String[] args = new String[]{name, DataType.Tile.value()};
@@ -550,10 +549,9 @@ public class GeoPkgWorkspace implements Workspace, FileData {
                 TileEntry e = new TileEntry();
     
                 initEntry(e, c);
-                e.setTimesTwoZoom(c.getInt(10) == 1);
     
-                sql = format("SELECT * FROM %s WHERE t_table_name = ? ORDER BY zoom_level", 
-                    TILE_MATRIX_METADATA);
+                sql = format("SELECT * FROM %s WHERE table_name = ? ORDER BY zoom_level", 
+                    TILE_MATRIX);
                 args = new String[]{name};
 
                 log(sql, (Object[])args);
