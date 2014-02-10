@@ -249,7 +249,7 @@ public class GeoPkgWorkspace implements Workspace, FileData {
             values.put("max_x", b.getMaxX());
             values.put("max_y", b.getMaxY());
         }
-        values.put("srid", entry.getSrid());
+        values.put("srs_id", entry.getSrid());
 
         db.insert(GEOPACKAGE_CONTENTS, null, values);
     }
