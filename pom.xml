@@ -33,6 +33,22 @@
     </dependency>
     <dependency>
       <groupId>org.jeo</groupId>
+      <artifactId>jeo-geogit</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.geogit</groupId>
+          <artifactId>geogit-sqlite-xerial</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.geogit</groupId>
+      <artifactId>geogit-sqlite-android</artifactId>
+      <version>0.8-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jeo</groupId>
       <artifactId>jeo-carto</artifactId>
       <version>${project.version}</version>
     </dependency>
